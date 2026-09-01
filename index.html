@@ -2,37 +2,100 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Cloudflare & Sheets Demo</title>
+    <title>React Google Sheet App</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+    </style>
 </head>
 <body>
-    <h2>Send Message to Google Sheet</h2>
-    <form id="messageForm">
-        <input type="text" id="msgInput" placeholder="Type a message..." required>
-        <button type="submit">Submit</button>
-    </form>
-    <p id="status"></p>
+    <div id="root"></div>
 
-    <script>
-        document.getElementById('messageForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const msg = document.getElementById('msgInput').value;
-            const status = document.getElementById('status');
-            
-            status.textContent = "Sending...";
-            
-            try {
-                await fetch('https://script.google.com/macros/s/AKfycbwpvKnuLLiGnylvlxpOHyzJKK0lwwR1H0GgV2Xws9wJFSMzzQiBMm8DgHaUKGwBJ5MR/exec', {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: msg })
-                });
-                status.textContent = "Saved successfully!";
-                document.getElementById('msgInput').value = '';
-            } catch (err) {
-                status.textContent = "Error saving data.";
-            }
-        });
+    <script type="text/babel">
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwCkb5g2dpCpZNAXqRRSAZt86GGIsJw2qyWmQZMoxnCg4roTVT7Jjm5mXPwUzR8gmjI/exec";
+
+        function App() {
+            const [message, setMessage] = React.useState("");
+            const [status, setStatus] = React.useState("");
+            const [rows, setRows] = React.useState([]);
+
+            const fetchSheetData = async () => {
+                try {
+                    const response = await fetch(WEB_APP_URL);
+                    const data = await response.json();
+                    setRows(data);
+                } catch (err) {
+                    console.error("Error fetching data", err);
+                }
+            };
+
+            React.useEffect(() => {
+                fetchSheetData();
+            }, []);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setStatus("Saving...");
+                try {
+                    await fetch(WEB_APP_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message })
+                    });
+                    setStatus("Saved successfully!");
+                    setMessage("");
+                    setTimeout(() => {
+                        setStatus("");
+                        fetchSheetData();
+                    }, 1500);
+                } catch (err) {
+                    setStatus("Error saving data.");
+                }
+            };
+
+            return (
+                <div>
+                    <h2>React & Google Sheets Data Log</h2>
+                    <form onSubmit={handleSubmit}>
+                        <input 
+                            type="text" 
+                            value={message} 
+                            onChange={(e) => setMessage(e.target.value)} 
+                            placeholder="Type a message..." 
+                            required 
+                        />
+                        <button type="submit">Submit</button>
+                    </form>
+                    <p>{status}</p>
+
+                    <h3>Sheet Entries</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((row, index) => (
+                                <tr key={index}>
+                                    <td>{row[0]}</td>
+                                    <td>{row[1]}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 </html>
